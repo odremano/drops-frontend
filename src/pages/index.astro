@@ -1,17 +1,78 @@
 ---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import AnnouncementBar from '../components/AnnouncementBar.astro';
+import ProductCard from '../components/ProductCard.astro';
+import { pb } from '../lib/pocketbase';
+import type { Product } from '../lib/pocketbase';
 
+let products: Product[] = [];
+let fetchError = false;
+
+try {
+  products = await pb.collection('products').getFullList<Product>({ sort: '-created' });
+} catch {
+  fetchError = true;
+}
+
+const available = products.filter(p => p.state?.[0] === 'available').length;
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout>
+
+  <AnnouncementBar />
+
+  <header class="bg-white border-b border-stone-200 px-6 py-20 text-center">
+    <p class="text-[9px] font-semibold tracking-[0.45em] uppercase text-stone-400 mb-6">
+      Drop 001 — Ciudad Autónoma de Buenos Aires, Argentina
+    </p>
+    <h1 class="font-display font-bold text-6xl md:text-8xl text-stone-900 tracking-tight leading-none">
+      Ordema Drop
+    </h1>
+    <p class="mt-6 text-sm text-stone-500 max-w-xs mx-auto leading-relaxed tracking-wide">
+      Ropa deportiva premium importada.<br />Edición ultralimitada. Sin reposición.
+    </p>
+    {available > 0 && (
+      <p class="mt-8 inline-flex items-center gap-2 text-[10px] font-semibold tracking-[0.3em] uppercase text-stone-900 border border-stone-900 px-5 py-2.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        {available} {available === 1 ? 'pieza disponible' : 'piezas disponibles'}
+      </p>
+    )}
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 py-16">
+
+    <div class="flex items-center gap-6 mb-12">
+      <div class="h-px flex-1 bg-stone-200"></div>
+      <p class="text-[9px] font-semibold tracking-[0.4em] uppercase text-stone-400 shrink-0">
+        Colección disponible
+      </p>
+      <div class="h-px flex-1 bg-stone-200"></div>
+    </div>
+
+    {fetchError ? (
+      <div class="text-center py-24">
+        <p class="text-xs tracking-widest uppercase text-stone-400">
+          No se pudo cargar la colección. Intentá de nuevo más tarde.
+        </p>
+      </div>
+    ) : products.length === 0 ? (
+      <div class="text-center py-24">
+        <p class="font-display italic text-3xl text-stone-300 mb-3">Próximamente</p>
+        <p class="text-xs tracking-widest uppercase text-stone-400">El próximo drop se anuncia pronto.</p>
+      </div>
+    ) : (
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-14">
+        {products.map((item) => <ProductCard item={item} />)}
+      </div>
+    )}
+
+  </main>
+
+  <footer class="border-t border-stone-200 py-12 px-6 text-center">
+    <p class="font-display italic text-stone-300 text-lg mb-3">Ordema Drop</p>
+    <p class="text-[9px] font-medium tracking-[0.35em] uppercase text-stone-400">
+      Ordema · Buenos Aires, Argentina · {new Date().getFullYear()}
+    </p>
+  </footer>
+
+</BaseLayout>

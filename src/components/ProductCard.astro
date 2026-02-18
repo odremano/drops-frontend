@@ -1,0 +1,159 @@
+---
+import type { Product } from '../lib/pocketbase';
+import { getImageUrl, formatPrice, buildWhatsAppLink } from '../lib/pocketbase';
+
+interface Props {
+  item: Product;
+}
+
+const { item } = Astro.props;
+
+const images = item.image?.length > 0
+  ? item.image.map((img) => getImageUrl(item.collectionId, item.id, img))
+  : [];
+
+const hasGallery = images.length > 1;
+const price = formatPrice(item.price);
+const isSoldOut = item.state?.[0] !== 'available';
+const waLink = buildWhatsAppLink(item);
+---
+
+<article class="group flex flex-col bg-white">
+
+  <div
+    class:list={['relative aspect-[3/4] overflow-hidden bg-stone-100', { 'grayscale opacity-60': isSoldOut }]}
+    data-gallery
+  >
+    {images.length === 0 ? (
+      <div class="w-full h-full flex items-center justify-center">
+        <span class="text-xs tracking-widest uppercase text-stone-400">Sin imagen</span>
+      </div>
+    ) : (
+      images.map((src, i) => (
+        <img
+          src={src}
+          alt={`${item.name}${hasGallery ? ` — foto ${i + 1}` : ''}`}
+          class:list={[
+            'absolute inset-0 w-full h-full object-cover transition-opacity duration-500',
+            i === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0',
+            { 'group-hover:scale-105 transition-transform duration-700 ease-out': !hasGallery },
+          ]}
+          loading={i === 0 ? 'eager' : 'lazy'}
+          data-index={i}
+        />
+      ))
+    )}
+
+    {hasGallery && (
+      <>
+        <button
+          data-prev
+          class="absolute left-0 top-0 w-1/2 h-full z-20 flex items-center justify-start pl-3 opacity-0 hover:opacity-100 transition-opacity duration-200"
+          aria-label="Foto anterior"
+        >
+          <span class="bg-white/85 backdrop-blur-sm rounded-full p-2 shadow-sm">
+            <svg class="w-3 h-3 text-stone-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </span>
+        </button>
+
+        <button
+          data-next
+          class="absolute right-0 top-0 w-1/2 h-full z-20 flex items-center justify-end pr-3 opacity-0 hover:opacity-100 transition-opacity duration-200"
+          aria-label="Foto siguiente"
+        >
+          <span class="bg-white/85 backdrop-blur-sm rounded-full p-2 shadow-sm">
+            <svg class="w-3 h-3 text-stone-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </span>
+        </button>
+
+        <div class="absolute bottom-11 left-0 right-0 flex justify-center gap-1.5 z-20 pointer-events-none">
+          {images.map((_, i) => (
+            <span
+              data-dot={i}
+              class:list={[
+                'block w-1.5 h-1.5 rounded-full transition-colors duration-300',
+                i === 0 ? 'bg-white' : 'bg-white/40',
+              ]}
+            />
+          ))}
+        </div>
+      </>
+    )}
+
+    {isSoldOut ? (
+      <div class="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-[2px] z-30">
+        <span class="text-[10px] font-semibold tracking-[0.35em] uppercase text-stone-900 border border-stone-900 px-5 py-2">
+          Agotado
+        </span>
+      </div>
+    ) : (
+      <div class="absolute bottom-0 left-0 right-0 bg-stone-900/75 backdrop-blur-sm text-stone-100 py-2.5 text-center z-20">
+        <p class="text-[9px] font-semibold tracking-[0.3em] uppercase">1 unidad disponible</p>
+      </div>
+    )}
+  </div>
+
+  <div class="pt-4 pb-6">
+    <div class="flex items-start justify-between gap-3 mb-1">
+      <h2 class="text-sm font-semibold text-stone-900 leading-snug">{item.name}</h2>
+      <span class="text-[10px] font-medium text-stone-500 tracking-wider uppercase shrink-0 mt-0.5">
+        T. {item.size}
+      </span>
+    </div>
+
+    <p class="text-[10px] font-medium tracking-[0.25em] uppercase text-stone-400 mb-5">{item.color}</p>
+
+    <div class="flex items-center justify-between gap-4">
+      <span class="font-display italic text-xl text-stone-900">{price}</span>
+
+      {isSoldOut ? (
+        <span class="text-[10px] tracking-widest uppercase text-stone-400 font-medium">Sin stock</span>
+      ) : (
+        <a
+          href={waLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-[10px] font-semibold tracking-[0.2em] uppercase bg-stone-900 text-white px-5 py-3 hover:bg-stone-700 active:scale-95 transition-all duration-150"
+        >
+          Reservar
+        </a>
+      )}
+    </div>
+  </div>
+</article>
+
+<script>
+  document.querySelectorAll('[data-gallery]').forEach((gallery) => {
+    const imgs = Array.from(gallery.querySelectorAll<HTMLElement>('[data-index]'));
+    if (imgs.length <= 1) return;
+
+    const dots = Array.from(gallery.querySelectorAll<HTMLElement>('[data-dot]'));
+    let current = 0;
+
+    function goTo(n: number) {
+      imgs[current].classList.remove('opacity-100', 'z-10');
+      imgs[current].classList.add('opacity-0', 'z-0');
+      dots[current]?.classList.replace('bg-white', 'bg-white/40');
+
+      current = ((n % imgs.length) + imgs.length) % imgs.length;
+
+      imgs[current].classList.remove('opacity-0', 'z-0');
+      imgs[current].classList.add('opacity-100', 'z-10');
+      dots[current]?.classList.replace('bg-white/40', 'bg-white');
+    }
+
+    gallery.querySelector('[data-prev]')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      goTo(current - 1);
+    });
+
+    gallery.querySelector('[data-next]')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      goTo(current + 1);
+    });
+  });
+</script>
