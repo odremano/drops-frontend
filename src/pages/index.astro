@@ -11,6 +11,11 @@ let fetchError = false;
 
 try {
   products = await pb.collection('products').getFullList<Product>({ sort: '-created' });
+  products.sort((a, b) => {
+    const aAvailable = a.state?.[0] === 'available' ? 0 : 1;
+    const bAvailable = b.state?.[0] === 'available' ? 0 : 1;
+    return aAvailable - bAvailable;
+  });
 } catch {
   fetchError = true;
 }
